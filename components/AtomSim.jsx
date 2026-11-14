@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -19,6 +19,8 @@ function randomInBox() {
 
 export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
   const mountRef = useRef(null);
+  const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const live = useRef({ temp, state, playing });
   live.current = { temp, state, playing };
 
@@ -26,14 +28,38 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
     const N = atomCount;
     const mount = mountRef.current;
     if (!mount) return;
+    // Jangan bikin konteks WebGL sebelum kotaknya punya ukuran — kalau lebar/tinggi
+    // masih 0 (mis. halaman baru dimuat atau baru balik dari cache), tunggu sampai
+    // ada ukuran dulu, karena kamera dengan aspek 0/0 bikin kanvasnya putih kosong.
+    if (mount.clientWidth === 0 || mount.clientHeight === 0) {
+      const ro = new ResizeObserver(() => {
+        if (mount.clientWidth > 0 && mount.clientHeight > 0) { ro.disconnect(); setRetryKey((k) => k + 1); }
+      });
+      ro.observe(mount);
+      return () => ro.disconnect();
+    }
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      // Konteks WebGL gagal dibuat (kadang terjadi di HP) — tampilkan pesan + tombol coba lagi,
+      // jangan biarkan kotaknya putih kosong.
+      setFailed(true);
+      return;
+    }
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x050914, 0.028);
     const camera = new THREE.PerspectiveCamera(52, mount.clientWidth / mount.clientHeight, 0.1, 200);
     camera.position.set(13, 9, 16);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    mount.appendChild(renderer.domElement);
+    const canvas = renderer.domElement;
+    mount.appendChild(canvas);
+
+    // Kalau konteks WebGL-nya hilang di tengah jalan (GPU HP lagi sibuk),
+    // tampilkan pesan + tombol coba lagi, bukan kanvas putih.
+    const onLost = (e) => { e.preventDefault(); setFailed(true); };
+    canvas.addEventListener('webglcontextlost', onLost);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 0.7;
@@ -160,8 +186,25 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
       renderer.setSize(mount.clientWidth, mount.clientHeight);
     };
     window.addEventListener('resize', onResize);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); controls.dispose(); renderer.dispose(); mount.removeChild(renderer.domElement); };
-  }, [atomCount]);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+      canvas.removeEventListener('webglcontextlost', onLost);
+      controls.dispose();
+      renderer.dispose();
+      if (canvas.parentNode === mount) mount.removeChild(canvas);
+    };
+  }, [atomCount, retryKey]);
 
+  if (failed) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'radial-gradient(circle at 50% 35%,#132344,#050914 70%)', color: '#cbd5e1', padding: 16, textAlign: 'center' }}>
+        <div style={{ fontSize: 28 }}>🛰️</div>
+        <div style={{ fontWeight: 700 }}>Simulasi 3D-nya nggak kebuka</div>
+        <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>Browser HP kadang gagal nyalain grafis 3D-nya — biasanya cuma sesekali. Coba muat ulang simulasinya, nggak perlu refresh halaman.</div>
+        <button className="toggle" onClick={() => { setFailed(false); setRetryKey((k) => k + 1); }}>Muat ulang simulasi</button>
+      </div>
+    );
+  }
   return <div ref={mountRef} style={{ width: '100%', height: '100%' }} />;
 }

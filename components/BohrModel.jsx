@@ -6,11 +6,29 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // Model Bohr 3D per unsur — file .glb dari Google (lewat Periodic-Table-JSON),
 // dimuat langsung dari storage.googleapis.com saat unsur dipilih.
+// Kanvas 3D-nya baru dibuat pas kartunya kelihatan di layar (lazy-load):
+// supaya waktu halaman dibuka cuma ada satu konteks WebGL (simulasi utama),
+// bukan dua sekaligus — di HP, dua konteks sekaligus kadang bikin salah
+// satunya gagal dan kanvasnya jadi putih.
 export default function BohrModel({ url, name }) {
+  const wrapRef = useRef(null);
   const mountRef = useRef(null);
+  const [visible, setVisible] = useState(false);
   const [status, setStatus] = useState('loading'); // loading | ok | error
 
   useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    if (typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setVisible(true); io.disconnect(); }
+    }, { rootMargin: '200px' });
+    io.observe(wrap);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
     const mount = mountRef.current;
     if (!mount || !url) return;
     setStatus('loading');
@@ -18,7 +36,13 @@ export default function BohrModel({ url, name }) {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 100);
     camera.position.set(0, 0.8, 5.4);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      setStatus('error');
+      return;
+    }
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
@@ -102,12 +126,12 @@ export default function BohrModel({ url, name }) {
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, [url]);
+  }, [url, visible]);
 
   return (
     <div>
       <div
-        ref={mountRef}
+        ref={wrapRef}
         style={{
           width: '100%', height: 280, borderRadius: 12, overflow: 'hidden',
           background: 'radial-gradient(ellipse at center, #101d38 0%, #0b1428 70%)',
@@ -115,14 +139,22 @@ export default function BohrModel({ url, name }) {
         }}
         role="img"
         aria-label={`Model Bohr 3D ${name}`}
-      />
-      {status === 'loading' && (
+      >
+        {visible ? (
+          <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
+            Model 3D {name} — gulir ke sini buat memuat
+          </div>
+        )}
+      </div>
+      {visible && status === 'loading' && (
         <p style={{ fontSize: 13, color: '#94a3b8', margin: '8px 0 0' }}>Memuat model 3D {name}…</p>
       )}
-      {status === 'error' && (
+      {visible && status === 'error' && (
         <p style={{ fontSize: 13, color: '#f87171', margin: '8px 0 0' }}>Model 3D-nya nggak bisa dimuat — periksa koneksi internetmu, lalu pilih unsur lain.</p>
       )}
-      {status === 'ok' && (
+      {visible && status === 'ok' && (
         <p style={{ fontSize: 13, color: '#94a3b8', margin: '8px 0 0' }}>Seret buat muter · Scroll buat zoom · Modelnya muter sendiri pelan-pelan</p>
       )}
     </div>
