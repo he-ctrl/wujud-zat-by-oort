@@ -44,7 +44,8 @@ export default function BohrModel({ url, name }) {
       return;
     }
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Batas piksel 1.5x (dulu 2x) — sama seperti simulasi utama.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -67,6 +68,15 @@ export default function BohrModel({ url, name }) {
     let alive = true;
     let mixer = null;
     const clock = new THREE.Clock();
+    // Berhenti total saat kartunya tidak kelihatan di layar (pengguna lagi
+    // gulir ke atas/bawah) — observer ini yang menyalakan lagi pas kelihatan.
+    let inView = true;
+    const kick = () => { if (alive && !raf) raf = requestAnimationFrame(animate); };
+    const io2 = new IntersectionObserver((entries) => {
+      inView = entries.some((e) => e.isIntersecting);
+      if (inView) kick();
+    });
+    io2.observe(mount);
     const loader = new GLTFLoader();
     loader.load(
       url,
@@ -95,10 +105,12 @@ export default function BohrModel({ url, name }) {
     );
 
     const animate = () => {
-      raf = requestAnimationFrame(animate);
+      raf = 0;
+      if (!alive || !inView) return; // loop berhenti; observer yang menyalakan lagi
       if (mixer) mixer.update(clock.getDelta());
       controls.update();
       renderer.render(scene, camera);
+      raf = requestAnimationFrame(animate);
     };
     animate();
 
@@ -113,6 +125,7 @@ export default function BohrModel({ url, name }) {
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
+      io2.disconnect();
       window.removeEventListener('resize', onResize);
       controls.dispose();
       scene.traverse((o) => {

@@ -52,7 +52,9 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
     const camera = new THREE.PerspectiveCamera(52, mount.clientWidth / mount.clientHeight, 0.1, 200);
     camera.position.set(13, 9, 16);
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Batas piksel 1.5x (dulu 2x): di HP layarnya padat (DPR 2-3), render 2x itu
+    // 4x piksel yang harus digambar tiap frame — sumber utama berat. 1.5x masih tajam.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     const canvas = renderer.domElement;
     mount.appendChild(canvas);
 
@@ -82,12 +84,18 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
     );
     cloud.visible = false; scene.add(cloud);
 
-    const atomGeo = new THREE.SphereGeometry(0.52, 24, 24);
+    // Bola lebih sederhana di layar kecil (16 segmen, dulu 24): tiap atom
+    // 24x24 itu ~1.150 segitiga, x84 atom = ~97 ribu segitiga per frame.
+    const seg = mount.clientWidth < 820 ? 16 : 24;
+    const atomGeo = new THREE.SphereGeometry(0.52, seg, seg);
+    // SATU material untuk semua atom (dulu 84 material, satu per atom):
+    // warnanya sama untuk semua atom di satu wujud, jadi tidak ada alasan
+    // tiap atom punya material sendiri — satu material = jauh lebih ringan.
+    const atomMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.25, metalness: 0.15, emissive: 0x0b2a4a, emissiveIntensity: 0.6 });
     const atoms = [];
     const anchors = [], currents = [], vels = [], phases = [];
     for (let i = 0; i < N; i++) {
-      const mat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.25, metalness: 0.15, emissive: 0x0b2a4a, emissiveIntensity: 0.6 });
-      const m = new THREE.Mesh(atomGeo, mat);
+      const m = new THREE.Mesh(atomGeo, atomMat);
       const a = lattice(i, N);
       m.position.copy(a);
       scene.add(m);
@@ -95,8 +103,17 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
       vels.push(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize());
       phases.push(Math.random() * Math.PI * 2);
     }
+    // Target posisi padat/BEC/fermionik dihitung SEKALI di sini (dulu dibuat
+    // ulang tiap atom tiap frame — 84 objek Vector3 baru per frame yang
+    // harus dibersihkan GC terus-menerus).
+    const becTargets = [], fermTargets = [];
+    for (let i = 0; i < N; i++) {
+      becTargets.push(new THREE.Vector3(Math.sin(i * 2.3) * 1.1, Math.cos(i * 1.7) * 0.9, Math.sin(i * 3.1) * 1.1));
+      const pair = Math.floor(i / 2);
+      fermTargets.push(new THREE.Vector3(Math.sin(pair * 2.3) * 1.2 + (i % 2 ? 0.35 : -0.35), Math.cos(pair * 1.7) * 1.0, Math.sin(pair * 3.1) * 1.2));
+    }
     // electrons, only for plasma
-    const eGeo = new THREE.SphereGeometry(0.16, 12, 12);
+    const eGeo = new THREE.SphereGeometry(0.16, 8, 8);
     const electrons = [];
     for (let i = 0; i < N; i++) {
       const m = new THREE.Mesh(eGeo, new THREE.MeshBasicMaterial({ color: 0xfde68a }));
@@ -106,15 +123,51 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
     const colors = { zero: 0xbfdbfe, fermionic: 0xf472b6, bec: 0xc084fc, solid: 0x38bdf8, liquid: 0x4ade80, gas: 0xfacc15, plasma: 0xfb923c, unstable: 0x94a3b8, superfluid: 0x22d3ee, supercritical: 0xa78bfa };
     const targetColor = new THREE.Color(0x38bdf8);
 
-    let raf = 0; const clock = new THREE.Clock();
+    let raf = 0;
+    const clock = new THREE.Clock();
+    const visRef = { current: true }; // kotaknya kelihatan di layar?
+    const lastRef = { current: { temp: -1, state: '', playing: null } };
+    let controlsDirty = true;
+    const onControlsChange = () => { controlsDirty = true; };
+    controls.addEventListener('change', onControlsChange);
+    // 'start' (pengguna mulai menyeret) tidak memicu 'change' — tanpa ini,
+    // seretan saat dijeda tidak pernah me-render karena loop-nya sedang skip.
+    controls.addEventListener('start', onControlsChange);
+    const kick = () => { if (!raf) raf = requestAnimationFrame(animate); };
+    // Kotak tidak kelihatan (pengguna lagi gulir ke bawah): berhenti total,
+    // jangan bakar GPU. Observer ini yang menyalakan lagi pas kelihatan.
+    const io = new IntersectionObserver((entries) => {
+      visRef.current = entries.some((e) => e.isIntersecting);
+      if (visRef.current) kick();
+    });
+    io.observe(mount);
+
     const animate = () => {
-      raf = requestAnimationFrame(animate);
+      raf = 0;
+      if (!visRef.current) return; // loop berhenti; observer yang menyalakan lagi
       const dt = Math.min(clock.getDelta(), 0.05);
       const t = clock.elapsedTime;
       const { temp, state, playing } = live.current;
-      if (!playing) { controls.update(); renderer.render(scene, camera); return; }
+      controls.autoRotate = playing;
+      // Saat dijeda, damping dimatikan: sisa putaran kamera diterapkan sekali
+      // lalu berhenti total — kalau damping tetap hidup, kameranya merayap
+      // pelan-pelan berpuluh-puluh frame dan loop tidak pernah berhenti.
+      controls.enableDamping = playing;
+      // Kalau dijeda dan tidak ada yang berubah (suhu/wujud sama, tidak ada
+      // yang menyeret), lewati render — framenya sudah benar, tidak perlu
+      // digambar ulang 60x/detik.
+      const changed = temp !== lastRef.current.temp || state !== lastRef.current.state || playing !== lastRef.current.playing;
+      if (!playing && !changed && !controlsDirty) { raf = requestAnimationFrame(animate); return; }
+      lastRef.current = { temp, state, playing };
+      controlsDirty = false;
 
+      // Fisika + warna cuma jalan saat Main — saat Jeda, atom membeku persis
+      // di tempatnya (dulu pun begitu: cabang !playing tidak menjalankan fisika).
+      if (playing) {
       targetColor.setHex(colors[state] || 0x38bdf8);
+      // Warna + pijar diatur sekali di material bersama (dulu per atom).
+      atomMat.color.lerp(targetColor, 0.08);
+      atomMat.emissive.copy(targetColor).multiplyScalar(state === 'plasma' ? 0.9 : 0.25);
       point.color.copy(targetColor);
       cloud.visible = state === 'bec' || state === 'zero' || state === 'fermionic';
       cloud.material.color.setHex(state === 'fermionic' ? 0xf472b6 : 0xa855f7);
@@ -126,25 +179,17 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
       const speed = Math.min(speedBase * (0.35 + Math.sqrt(Math.max(temp, 1)) / 18), 7);
 
       atoms.forEach((m, i) => {
-        m.material.color.lerp(targetColor, 0.08);
         if (state === 'superfluid') {
           // Superfluid: ngalir tanpa gesekan — atomnya berputar halus, nggak mantul-mantul
           const r = 1.6 + (i % 5) * 1.1;
           const a = t * 0.35 + phases[i];
           m.position.set(Math.cos(a) * r, Math.sin(a * 0.7 + phases[i]) * 1.4, Math.sin(a) * r);
-          m.material.emissive.copy(targetColor).multiplyScalar(0.25);
           const e = electrons[i]; e.visible = false;
           return;
         }
-        m.material.emissive.copy(targetColor).multiplyScalar(state === 'plasma' ? 0.9 : 0.25);
         if (isFixed) {
           // Fermionic condensate: atoms pair up (Cooper pairs) around the centre
-          const pair = Math.floor(i / 2);
-          const target = state === 'bec'
-            ? new THREE.Vector3(Math.sin(i * 2.3) * 1.1, Math.cos(i * 1.7) * 0.9, Math.sin(i * 3.1) * 1.1)
-            : state === 'fermionic'
-              ? new THREE.Vector3(Math.sin(pair * 2.3) * 1.2 + (i % 2 ? 0.35 : -0.35), Math.cos(pair * 1.7) * 1.0, Math.sin(pair * 3.1) * 1.2)
-              : lattice(i, N);
+          const target = state === 'bec' ? becTargets[i] : state === 'fermionic' ? fermTargets[i] : anchors[i];
           currents[i].lerp(target, 0.03);
           const amp = state === 'zero' ? 0 : state === 'bec' || state === 'fermionic' ? 0.06 : 0.07 + 0.32 * Math.sqrt(Math.max(temp, 0) / 273);
           const f = 2 + Math.sqrt(Math.max(temp, 1)) / 12;
@@ -174,9 +219,11 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
           e.position.set(m.position.x + Math.cos(a) * 0.85, m.position.y + Math.sin(a * 1.3) * 0.85, m.position.z + Math.sin(a) * 0.85);
         }
       });
+      } // end if (playing)
 
       controls.update();
       renderer.render(scene, camera);
+      raf = requestAnimationFrame(animate);
     };
     animate();
 
@@ -188,6 +235,9 @@ export default function AtomSim({ temp, state, playing, atomCount = 84 }) {
     window.addEventListener('resize', onResize);
     return () => {
       cancelAnimationFrame(raf);
+      io.disconnect();
+      controls.removeEventListener('change', onControlsChange);
+      controls.removeEventListener('start', onControlsChange);
       window.removeEventListener('resize', onResize);
       canvas.removeEventListener('webglcontextlost', onLost);
       controls.dispose();
