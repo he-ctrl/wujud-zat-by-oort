@@ -1,4 +1,4 @@
-export const metadata = { title: 'Sumber — Wujud Zat', description: 'Semua data dan riset yang dipakai di simulasi wujud zat, lengkap dengan tautannya.' };
+export const metadata = { title: 'Sumber — FaseZat', description: 'Semua data dan riset yang dipakai di simulasi wujud zat, lengkap dengan tautannya.' };
 
 const GROUPS = [
   {
@@ -86,7 +86,7 @@ export default function Sumber() {
         <div className="eyebrow">Sumber</div>
         <h1>Dari mana semua angka di situs ini?</h1>
         <p>Semua data dan riset yang dipakai di simulasi wujud zat, lengkap dengan tautannya. Klik judulnya buat buka sumber aslinya.</p>
-        <p><a href="/" style={{ color: '#38bdf8' }}>← Kembali ke simulasi</a></p>
+        <p><a href="/" style={{ color: '#00E5FF' }}>← Kembali ke simulasi</a></p>
       </header>
       {GROUPS.map((g) => (
         <div key={g.title} className="panel" style={{ marginTop: 18 }}>
@@ -94,17 +94,17 @@ export default function Sumber() {
           <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 8, lineHeight: 1.6 }}>
             {g.items.map((it) => (
               <li key={it.url}>
-                <a href={it.url} target="_blank" rel="noreferrer" style={{ color: '#7dd3fc' }}>{it.name}</a>
+                <a href={it.url} target="_blank" rel="noreferrer" style={{ color: '#8ef1ff' }}>{it.name}</a>
               </li>
             ))}
           </ul>
         </div>
       ))}
-      <footer style={{ marginTop: 28, paddingTop: 18, borderTop: '1px solid #1e2f52', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 13, color: '#64748b' }}>Wujud Zat · Visualisasi buat belajar, bukan alat ukur.</div>
+      <footer style={{ marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,.12)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 13, color: '#7d8aa8' }}>FaseZat · Visualisasi buat belajar, bukan alat ukur.</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 99, border: '1px solid #1e2f52', background: '#0b1428', color: '#cbd5e1', fontSize: 13, textDecoration: 'none' }}>← Kembali ke simulasi</a>
-          <a href="https://www.instagram.com/edge_ofuniverse?srtk=NG84NDhiNGtiZ29o" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 99, border: '1px solid #1e2f52', background: '#0b1428', color: '#cbd5e1', fontSize: 13, textDecoration: 'none' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>@edge_ofuniverse</a>
+          <a href="/" className="footLink">← Kembali ke simulasi</a>
+          <a href="https://www.instagram.com/edge_ofuniverse?srtk=NG84NDhiNGtiZ29o" target="_blank" rel="noreferrer" className="footLink"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>@edge_ofuniverse</a>
         </div>
       </footer>
     </div>
