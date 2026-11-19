@@ -238,7 +238,7 @@ export default function Home() {
       <div className="panel" style={{ marginTop: 14 }}>
         <p className="stepLabel"><b>01</b> · PILIH UNSURMU</p>
         <h2 style={{ margin: '0 0 4px' }}>Pilih unsurmu</h2>
-        <p style={{ margin: '0 0 12px', color: '#b8c6e6', fontSize: 14, lineHeight: 1.6 }}>Klik kotaknya di tabel periodik, atau ketik nama / simbol / nomor atom di kolom cari. Semua 118 unsur pakai cara yang sama: titik leleh dan titik didihnya yang nentuin kapan padat, cair, dan gas. Tiap kotak juga nunjukin bentuk materi unsurnya di suhu ruang — gelembung buat gas, tetesan buat cair, bongkahan logam atau kristal buat padat. Gambarnya diam, bukan model 3D yang bisa diputar.</p>
+        <p style={{ margin: '0 0 12px', color: '#b8c6e6', fontSize: 14, lineHeight: 1.6 }}>Klik kotaknya di tabel periodik, atau ketik nama / simbol / nomor atom di kolom cari. Semua 118 unsur pakai cara yang sama: titik leleh dan titik didihnya yang nentuin kapan padat, cair, dan gas. Bentuk materi unsur yang dipilih — gelembung buat gas, tetesan buat cair, bongkahan logam atau kristal buat padat — ditunjukin di kartunya di bawah.</p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && firstMatch) selectEl(firstMatch.n); }} placeholder="Cari unsur… misal Fe, Besi, Emas, 26" aria-label="Cari unsur" className="searchField" />
           {firstMatch && q && <button className="toggle" style={{ width: 'auto', flex: '0 0 auto' }} onClick={() => selectEl(firstMatch.n)}>Pilih {firstMatch.s}</button>}
@@ -247,7 +247,6 @@ export default function Home() {
           {ELEMENTS.map((e) => (
             <button key={e.n} className={`tile ${e.n === elNum ? 'selected' : ''} ${q && !matches(e) ? 'dim' : ''}`} style={{ gridColumn: e.x, gridRow: e.y, borderColor: CAT_COLOR[e.cat] || '#334155' }} onClick={() => selectEl(e.n)} title={`${e.name} (${e.s}) · No. ${e.n} · meleleh ${fmtK(e.melt)} · mendidih ${fmtK(e.boil)}`}>
               <span className="tileNum">{e.n}</span>
-              <span className="tileGem"><MaterialForm {...materialOf(e)} /></span>
               <span className="tileSym">{e.s}</span>
             </button>
           ))}
