@@ -2,7 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AtomSim from '../components/AtomSim';
 import BohrModel from '../components/BohrModel';
+import MaterialForm from '../components/MaterialForm';
 import { ELEMENTS } from '../data/elements';
+import { materialOf } from '../data/materials';
 
 // Kartu yang bisa dibuka-tutup, dengan animasi halus (tinggi + opacity) dan panah yang berputar.
 function Collapse({ open, onToggle, header, children, maxH }) {
@@ -113,6 +115,7 @@ export default function Home() {
   const cohKj = el.boil ? (85 * el.boil / 1000) : null; // perkiraan energi kohesif, aturan Trouton
   const state = getState(temp, melt, boil, el, caps);
   const info = INFO[state];
+  const mat = materialOf(el); // bentuk materi unsur yang dipilih, di suhu ruang
 
   const stats = useMemo(() => {
     const R = 8.314, M = (el.mass || 40) / 1000; // kg/mol
@@ -206,8 +209,9 @@ export default function Home() {
 
   return (
     <div className="wrap">
+      <div className="liquid-bg" aria-hidden="true"><i className="blob b1" /><i className="blob b2" /><i className="blob b3" /><i className="blob b4" /></div>
       <header>
-        <div className="eyebrow">Simulasi Fisika 3D Interaktif</div>
+        <div className="eyebrow">FaseZat · Simulasi Fisika 3D Interaktif</div>
         <h1>Seberapa cepat sih atom bergerak?<br />Dari nol mutlak sampai plasma.</h1>
         <p>Suhu itu sebenarnya gerakan atom. Pilih unsur, atur suhu dan tekanannya — tiap unsur punya titik leleh dan titik didih sendiri, jadi wujudnya berubah di suhu yang beda-beda.</p>
         <div className="chipRow"><span className="chip">118 unsur</span><span className="chip">0–15.000 K</span><span className="chip">0,01–200 atm</span><span className="chip">10 wujud zat</span></div>
@@ -234,15 +238,16 @@ export default function Home() {
       <div className="panel" style={{ marginTop: 14 }}>
         <p className="stepLabel"><b>01</b> · PILIH UNSURMU</p>
         <h2 style={{ margin: '0 0 4px' }}>Pilih unsurmu</h2>
-        <p style={{ margin: '0 0 12px', color: '#b8c6e6', fontSize: 14, lineHeight: 1.6 }}>Klik kotaknya di tabel periodik, atau ketik nama / simbol / nomor atom di kolom cari. Semua 118 unsur pakai cara yang sama: titik leleh dan titik didihnya yang nentuin kapan padat, cair, dan gas.</p>
+        <p style={{ margin: '0 0 12px', color: '#b8c6e6', fontSize: 14, lineHeight: 1.6 }}>Klik kotaknya di tabel periodik, atau ketik nama / simbol / nomor atom di kolom cari. Semua 118 unsur pakai cara yang sama: titik leleh dan titik didihnya yang nentuin kapan padat, cair, dan gas. Tiap kotak juga nunjukin bentuk materi unsurnya di suhu ruang — gelembung buat gas, tetesan buat cair, bongkahan logam atau kristal buat padat. Gambarnya diam, bukan model 3D yang bisa diputar.</p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && firstMatch) selectEl(firstMatch.n); }} placeholder="Cari unsur… misal Fe, Besi, Emas, 26" aria-label="Cari unsur" style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid #334155', background: '#111c36', color: '#e2e8f0' }} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && firstMatch) selectEl(firstMatch.n); }} placeholder="Cari unsur… misal Fe, Besi, Emas, 26" aria-label="Cari unsur" className="searchField" />
           {firstMatch && q && <button className="toggle" style={{ width: 'auto', flex: '0 0 auto' }} onClick={() => selectEl(firstMatch.n)}>Pilih {firstMatch.s}</button>}
         </div>
         <div className="ptable" role="grid" aria-label="Tabel periodik">
           {ELEMENTS.map((e) => (
             <button key={e.n} className={`tile ${e.n === elNum ? 'selected' : ''} ${q && !matches(e) ? 'dim' : ''}`} style={{ gridColumn: e.x, gridRow: e.y, borderColor: CAT_COLOR[e.cat] || '#334155' }} onClick={() => selectEl(e.n)} title={`${e.name} (${e.s}) · No. ${e.n} · meleleh ${fmtK(e.melt)} · mendidih ${fmtK(e.boil)}`}>
               <span className="tileNum">{e.n}</span>
+              <span className="tileGem"><MaterialForm {...materialOf(e)} /></span>
               <span className="tileSym">{e.s}</span>
             </button>
           ))}
@@ -250,7 +255,7 @@ export default function Home() {
         <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>Yang dipilih: <b style={{ color: '#fff' }}>{el.name} ({el.s})</b> — No. atom {el.n} · massa {el.mass} u · {el.cat || ''}</div>
       </div>
 
-      <div className="panel" style={{ marginTop: 14 }}>
+      <div className="panel panel--hero" style={{ marginTop: 14 }}>
         <div className="sim">
           <AtomSim temp={temp} state={state} playing={playing} atomCount={atomCount} />
           <div className="stateBadge" style={{ color: info.color }}>{el.s} · {info.name}</div>
@@ -279,7 +284,7 @@ export default function Home() {
               <button key={p.label} className={temp === p.t ? 'active' : ''} onClick={() => setTemp(p.t)}>{p.label}</button>
             ))}
           </div>
-          <div style={{ marginTop: 16, background: '#0b1428', border: '1px solid #1e2f52', borderRadius: 14, padding: 12 }}>
+          <div className="innerPanel" style={{ marginTop: 16 }}>
             <p className="stepLabel" style={{ marginBottom: 6 }}><b>03</b> · TEKANAN &amp; GAYA ANTAR ATOM</p>
             <h3 style={{ margin: '0 0 4px' }}>Tekanan &amp; gaya antar atom</h3>
             <p style={{ margin: '0 0 12px', color: '#b8c6e6', fontSize: 14, lineHeight: 1.6 }}>Wujud zat nggak cuma soal suhu. Tekanan itu seberapa keras atomnya ditekan dari luar; gaya antar atom itu seberapa kuat atomnya saling nempel dari dalam. Makin tinggi tekanan, titik didihnya naik (Clausius–Clapeyron). Makin kuat gayanya, titik leleh dan titik didihnya ikut naik. Gaya antar atom aslinya udah bawaan tiap unsur — slider di bawah ini cuma buat coba-coba "gimana kalau gayanya 2× lebih kuat".</p>
@@ -304,14 +309,14 @@ export default function Home() {
             <div className="stat"><b>{atomCount} atom</b><span>Di kotak 3D · {el.name} ({el.s})</span></div>
           </div>
 
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 16, background: '#0b1428', border: '1px solid #1e2f52', borderRadius: 14, padding: 12 }}>
-            <div style={{ width: 74, height: 74, flex: '0 0 74px', border: `2px solid #${el.color || '38bdf8'}`, borderRadius: 12, background: '#0e1a33', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1 }}>{el.n}</span>
-              <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.1, color: `#${el.color || '38bdf8'}` }}>{el.s}</span>
-              <span style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1 }}>{el.name}</span>
+          <div className="matCard">
+            <div className="matBox" style={{ borderColor: `#${el.color || '38bdf8'}` }}>
+              <span className="matGem"><MaterialForm {...mat} /></span>
+              <span className="matSym" style={{ color: `#${el.color || '38bdf8'}` }}>{el.s}</span>
             </div>
             <div style={{ flex: '1 1 220px' }}>
               <b>{el.name} ({el.s}) — {el.cat || 'unsur'}</b>
+              <div className="matLabel" style={{ marginTop: 4 }}>Bentuk materi di suhu ruang · {mat.label}</div>
               <div style={{ color: '#b8c6e6', fontSize: 14, lineHeight: 1.55 }}>Nomor atom {el.n} · massa atom {el.mass} u · di 1 atm meleleh di <b style={{ color: '#fff' }}>{fmtK(el.melt)}</b> · mendidih di <b style={{ color: '#fff' }}>{fmtK(el.boil)}</b>{!hasData ? ' · sebagian datanya belum tersedia, jadi simulasi pakai patokan umum' : ''}. Di tekanan dan gaya antar atom yang kamu atur sekarang: meleleh di <b style={{ color: '#fff' }}>{fmtK(melt)}</b>, mendidih di <b style={{ color: '#fff' }}>{fmtK(boil)}</b>. {el.n >= 104 ? 'Unsur superberat: belum pernah ada sampel makroskopisnya, cuma dibuat atom per atom dan meluruh dalam hitungan detik/menit, jadi padat, cair, dan gas curahnya nggak bisa diamati.' : el.s === 'He' && !caps.solid ? 'Helium satu-satunya unsur yang nggak bisa membeku di tekanan 1 atm, bahkan di 0 K — butuh sekitar 25 bar baru bisa padat. Naikin tekanannya di atas 25 bar biar dia bisa padat. Di bawah 2,17 K, helium cairnya jadi superfluid — ngalir tanpa gesekan.' : !caps.liquid ? `Di tekanan ini (${pressure < 1 ? pressure.toFixed(2) : Math.round(pressure)} atm), ${el.name} langsung menyublim dari padat ke gas di ${fmtK(Math.min(melt, boil))}, tanpa jadi cair dulu — cairnya butuh tekanan di atas ${tp} atm (titik tripelnya).` : 'Di bawah titik leleh dia padat, di antara titik leleh dan titik didih dia cair, di atas titik didih dia gas.'}{!caps.bec && el.bec ? ' Tekanan di atas 1 atm: gasnya terlalu rapat buat jadi BEC — BEC butuh gas encer.' : ''}{caps.super && el.crit ? ` Di atas titik kritis (${fmtK(el.crit.t)}, ${el.crit.p} atm), cair dan gas nggak bisa dibedakan lagi — jadi superkritis.` : ''}</div>
             </div>
             <div style={{ flex: '1 1 100%' }}>
@@ -364,11 +369,11 @@ export default function Home() {
         </div>
       </div>
 
-      <footer style={{ marginTop: 28, paddingTop: 18, borderTop: '1px solid #1e2f52', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 13, color: '#64748b' }}>Wujud Zat · Visualisasi buat belajar, bukan alat ukur.</div>
+      <footer style={{ marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,.12)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 13, color: '#7d8aa8' }}>FaseZat · Visualisasi buat belajar, bukan alat ukur.</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <a href="/sumber" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 99, border: '1px solid #1e2f52', background: '#0b1428', color: '#cbd5e1', fontSize: 13, textDecoration: 'none' }}>Sumber</a>
-          <a href="https://www.instagram.com/edge_ofuniverse?srtk=NG84NDhiNGtiZ29o" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 99, border: '1px solid #1e2f52', background: '#0b1428', color: '#cbd5e1', fontSize: 13, textDecoration: 'none' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>@edge_ofuniverse</a>
+          <a href="/sumber" className="footLink">Sumber</a>
+          <a href="https://www.instagram.com/edge_ofuniverse?srtk=NG84NDhiNGtiZ29o" target="_blank" rel="noreferrer" className="footLink"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>@edge_ofuniverse</a>
         </div>
       </footer>
     </div>
