@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AtomSim from '../components/AtomSim';
 import BohrModel from '../components/BohrModel';
+import ElectronConfig from '../components/ElectronConfig';
 import MaterialForm from '../components/MaterialForm';
 import { ELEMENTS } from '../data/elements';
 import { materialOf } from '../data/materials';
@@ -322,6 +323,10 @@ export default function Home() {
               <p className="stepLabel" style={{ marginBottom: 6 }}>MODEL BOHR 3D</p>
               <BohrModel key={el.n} url={el.bohr} name={el.name} />
               <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.6 }}>Inti atom di tengah, elektron mengorbit di kulitnya — skema Bohr buat {el.name}. Ini penyederhanaan: elektron aslinya bukan bola kecil yang mengorbit, melainkan awan peluang. Model 3D: Google, lewat Periodic-Table-JSON.</p>
+            </div>
+            <div style={{ flex: '1 1 100%', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
+              <p className="stepLabel" style={{ marginBottom: 6 }}>KONFIGURASI BOHR &amp; TABEL AUFBAU</p>
+              <ElectronConfig key={`ec-${el.n}`} el={el} />
             </div>
           </div>
         </div>

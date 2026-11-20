@@ -32,6 +32,15 @@ button{font-family:inherit}
 @keyframes drift2{from{transform:translate(0,0) scale(1.05)}to{transform:translate(-70px,50px) scale(.95)}}
 @keyframes drift3{from{transform:translate(0,0) scale(1)}to{transform:translate(50px,-45px) scale(1.1)}}
 
+/* Animasi konfigurasi elektron: elektron mengorbit di diagram Bohr,
+   kotak kulit & Aufbau muncul berurutan mengikuti urutan pengisian.
+   (Cuma transform — tanpa opacity — supaya tidak bentrok dengan
+   kotak Aufbau yang memang sengaja dibuat redup kalau masih kosong.) */
+@keyframes bohr-orbit{to{transform:rotate(360deg)}}
+@keyframes aufbau-pop{from{transform:translateY(6px) scale(.92)}to{transform:translateY(0) scale(1)}}
+.bohr-orbit{animation:bohr-orbit linear infinite;transform-origin:120px 120px;transform-box:view-box}
+.aufbau-pop{animation:aufbau-pop .45s ease both}
+
 .wrap{max-width:1120px;margin:0 auto;padding:28px 18px 48px;position:relative;z-index:1}
 header h1{font-size:clamp(30px,4.6vw,48px);line-height:1.04;margin:8px 0 10px;letter-spacing:-.03em;font-weight:800}
 header p{color:var(--ink2);max-width:760px;line-height:1.65;margin:0;font-size:16px}
@@ -122,6 +131,7 @@ code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px}
 /* Aksesibilitas (Apple HIG): hormati pengaturan sistem. */
 @media (prefers-reduced-motion:reduce){
   .blob{animation:none}
+  .bohr-orbit,.aufbau-pop{animation:none}
   .tryCard,.tile,.presets button,.toggle{transition:none}
 }
 @media (prefers-reduced-transparency:reduce){
